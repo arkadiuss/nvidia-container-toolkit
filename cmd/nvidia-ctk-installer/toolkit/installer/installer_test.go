@@ -170,7 +170,7 @@ func TestToolkitInstaller(t *testing.T) {
 				path: "/foo/bar/baz/nvidia-container-runtime",
 				mode: 0o777,
 				wrapper: `#! /bin/sh
-cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1
+cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1 || [ -e /dev/dxg ]
 if [ "${?}" != "0" ]; then
 	echo "nvidia driver modules are not yet loaded, invoking runc directly" >&2
 	exec runc "$@"
@@ -185,7 +185,7 @@ PATH=/foo/bar/baz:$PATH \
 				path: "/foo/bar/baz/nvidia-container-runtime.cdi",
 				mode: 0o777,
 				wrapper: `#! /bin/sh
-cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1
+cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1 || [ -e /dev/dxg ]
 if [ "${?}" != "0" ]; then
 	echo "nvidia driver modules are not yet loaded, invoking runc directly" >&2
 	exec runc "$@"
@@ -200,7 +200,7 @@ PATH=/foo/bar/baz:$PATH \
 				path: "/foo/bar/baz/nvidia-container-runtime.legacy",
 				mode: 0o777,
 				wrapper: `#! /bin/sh
-cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1
+cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1 || [ -e /dev/dxg ]
 if [ "${?}" != "0" ]; then
 	echo "nvidia driver modules are not yet loaded, invoking runc directly" >&2
 	exec runc "$@"

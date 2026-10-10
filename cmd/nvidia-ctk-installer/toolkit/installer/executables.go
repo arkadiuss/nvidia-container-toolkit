@@ -177,7 +177,7 @@ func (w *wrapper) Install(destDir string) error {
 func (w *render) render() (io.Reader, error) {
 	wrapperTemplate := `#! /bin/sh
 {{- if (.CheckModules) }}
-cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1
+cat /proc/modules | grep -e "^nvidia " >/dev/null 2>&1 || [ -e /dev/dxg ]
 if [ "${?}" != "0" ]; then
 	echo "nvidia driver modules are not yet loaded, invoking {{ .DefaultRuntimeExecutablePath }} directly" >&2
 	exec {{ .DefaultRuntimeExecutablePath }} "$@"
