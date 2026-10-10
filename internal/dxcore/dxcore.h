@@ -33,7 +33,7 @@ struct dxcore_context
 
 
 
-int dxcore_init_context(struct dxcore_context* pDxcore_context);
+int dxcore_init_context(struct dxcore_context* pDxcore_context, const char* libraryPath);
 void dxcore_deinit_context(struct dxcore_context* pDxcore_context);
 
 #endif // HEADER_DXCORE_H_

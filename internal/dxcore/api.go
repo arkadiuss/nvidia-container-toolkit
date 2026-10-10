@@ -19,9 +19,10 @@ package dxcore
 // dxcore stores a reference the dxcore dynamic library
 var dxcore *context
 
-// Init initializes the dxcore dynamic library
-func Init() error {
-	c, err := initContext()
+// Init initializes the dxcore dynamic library at the specified path. A bare
+// library name is resolved by the dynamic linker.
+func Init(libraryPath string) error {
+	c, err := initContext(libraryPath)
 	if err != nil {
 		return err
 	}

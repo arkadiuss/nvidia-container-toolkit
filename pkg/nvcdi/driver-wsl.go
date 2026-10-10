@@ -29,10 +29,12 @@ import (
 
 const (
 	libcudaSo = "libcuda.so.1.1"
+	libdxcore = "libdxcore.so"
+	wslLibDir = "/usr/lib/wsl/lib"
 )
 
 var dxcoreLibraries = []string{
-	"libdxcore.so", /* Core library for dxcore support */
+	libdxcore, /* Core library for dxcore support */
 }
 
 var requiredDriverStoreFiles = []string{
@@ -47,8 +49,10 @@ var requiredDriverStoreFiles = []string{
 }
 
 // newWSLDriverDiscoverer returns a Discoverer for WSL2 drivers.
+// The driver files are located relative to the driver root so that a spec can
+// be generated from a container with the host root mounted at a different path.
 func (l *wsllib) newWSLDriverDiscoverer() (discover.Discover, error) {
-	if err := dxcore.Init(); err != nil {
+	if err := dxcore.Init(l.getDXCoreLibraryPath()); err != nil {
 		return nil, fmt.Errorf("failed to initialize dxcore: %w", err)
 	}
 	defer func() {
@@ -74,11 +78,8 @@ func (l *wsllib) newWSLDriverDiscoverer() (discover.Discover, error) {
 
 	dxcoreMounts := discover.NewMounts(
 		l.logger,
-		lookup.NewFileLocator(
-			lookup.WithLogger(l.logger),
-			lookup.WithSearchPaths(
-				"/usr/lib/wsl/lib",
-			),
+		l.driver.Files(
+			lookup.WithSearchPaths(wslLibDir),
 			lookup.WithCount(1),
 		),
 		l.driver.Root,
@@ -87,11 +88,8 @@ func (l *wsllib) newWSLDriverDiscoverer() (discover.Discover, error) {
 
 	requiredDriverStoreMounts := discover.NewMounts(
 		l.logger,
-		lookup.NewFileLocator(
-			lookup.WithLogger(l.logger),
-			lookup.WithSearchPaths(
-				nvDriverStorePath,
-			),
+		l.driver.Files(
+			lookup.WithSearchPaths(nvDriverStorePath),
 			lookup.WithCount(1),
 		),
 		l.driver.Root,
@@ -122,10 +120,25 @@ func (l *wsllib) newWSLDriverDiscoverer() (discover.Discover, error) {
 	return d, nil
 }
 
-// getNVIDIADriverStorePath returns the driver store path associated with NVIDIA GPUs
+// getDXCoreLibraryPath returns the path to the dxcore library in the driver
+// root. If it is not found there, the library name is returned so that the
+// dynamic linker resolves it.
+func (l *wsllib) getDXCoreLibraryPath() string {
+	libraries, err := l.driver.Files(
+		lookup.WithSearchPaths(wslLibDir),
+		lookup.WithCount(1),
+	).Locate(libdxcore)
+	if err != nil || len(libraries) == 0 {
+		return libdxcore
+	}
+	return libraries[0]
+}
+
+// getNVIDIADriverStorePath returns the driver store path associated with NVIDIA GPUs.
+// The driver store paths reported by dxcore, and the returned path, are host
+// paths, which are located relative to the driver root.
 func (l *wsllib) getNVIDIADriverStorePath(driverStorePaths []string) (string, error) {
-	fileLocator := lookup.NewFileLocator(
-		lookup.WithLogger(l.logger),
+	fileLocator := l.driver.Files(
 		lookup.WithSearchPaths(
 			driverStorePaths...,
 		),
@@ -139,7 +152,7 @@ func (l *wsllib) getNVIDIADriverStorePath(driverStorePaths []string) (string, er
 		return "", fmt.Errorf("could not locate %s at WSL driver store paths", libcudaSo)
 	}
 
-	return filepath.Dir(matches[0]), nil
+	return filepath.Dir(l.driver.RelativeToRoot(matches[0])), nil
 }
 
 // getAdditionalMountsFromDriverStore discovers additional NVIDIA libraries (.so files) from the
@@ -165,8 +178,7 @@ func (l *wsllib) getAdditionalMountsFromDriverStore(driverStore string) (discove
 
 func (l *wsllib) getAdditionalFilesFromDriverStore(driverStore string, excludeFiles []string) ([]string, error) {
 	fileLocator := lookup.AsOptional(
-		lookup.NewFileLocator(
-			lookup.WithLogger(l.logger),
+		l.driver.Files(
 			lookup.WithSearchPaths(driverStore),
 			lookup.WithFilter(func(s string) error {
 				if slices.Contains(excludeFiles, filepath.Base(s)) {
@@ -188,7 +200,11 @@ func (l *wsllib) getAdditionalFilesFromDriverStore(driverStore string, excludeFi
 	if err != nil {
 		return nil, fmt.Errorf("failed to find additional '.dll' files in driver store: %w", err)
 	}
-	return slices.Concat(libs, bins, dlls), nil
+	var files []string
+	for _, file := range slices.Concat(libs, bins, dlls) {
+		files = append(files, l.driver.RelativeToRoot(file))
+	}
+	return files, nil
 }
 
 type nvidiaSMISimlinkHook struct {
