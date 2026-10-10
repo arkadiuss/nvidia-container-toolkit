@@ -497,9 +497,24 @@ func (t *Installer) createDirectories(dir ...string) error {
 	return nil
 }
 
+// isWSL checks whether the dev root contains the /dev/dxg device node through
+// which WSL2 exposes GPUs.
+func (o *Options) isWSL() bool {
+	devRoot := o.DevRootCtrPath
+	if devRoot == "" {
+		devRoot = o.DriverRootCtrPath
+	}
+	_, err := os.Stat(filepath.Join(devRoot, "dev", "dxg"))
+	return err == nil
+}
+
 func (t *Installer) createDeviceNodes(opts *Options) error {
 	modes := opts.createDeviceNodes
 	if len(modes) == 0 {
+		return nil
+	}
+	if opts.isWSL() {
+		t.logger.Infof("Skipping creation of %v device nodes on WSL2", modes)
 		return nil
 	}
 
@@ -528,10 +543,17 @@ func (t *Installer) generateCDISpec(opts *Options, nvidiaCDIHookPath string) err
 	if !opts.CDI.Enabled {
 		return nil
 	}
+	// On WSL2 the GPUs are exposed through /dev/dxg and the driver through the
+	// driver store, so the spec is generated in WSL mode instead.
+	mode := nvcdi.ModeManagement
+	if opts.isWSL() {
+		mode = nvcdi.ModeWsl
+	}
+
 	t.logger.Infof("Generating CDI spec for management containers")
 	cdilib, err := nvcdi.New(
 		nvcdi.WithLogger(t.logger),
-		nvcdi.WithMode(nvcdi.ModeManagement),
+		nvcdi.WithMode(mode),
 		nvcdi.WithDriverRoot(opts.DriverRootCtrPath),
 		nvcdi.WithDevRoot(opts.DevRootCtrPath),
 		nvcdi.WithNVIDIACDIHookPath(nvidiaCDIHookPath),
