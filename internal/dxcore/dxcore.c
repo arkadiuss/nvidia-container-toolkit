@@ -329,7 +329,7 @@ static void dxcore_enum_adapters(struct dxcore_context* pCtx, struct dxcore_lib*
         log_err("Failed to enumerate adapters via dxcore");
 }
 
-int dxcore_init_context(struct dxcore_context* pCtx)
+int dxcore_init_context(struct dxcore_context* pCtx, const char* libraryPath)
 {
         struct dxcore_lib lib = {0};
 
@@ -337,7 +337,7 @@ int dxcore_init_context(struct dxcore_context* pCtx)
         pCtx->adapterCount = 0;
         pCtx->adapterList = NULL;
 
-        lib.hDxcoreLib = dlopen("libdxcore.so", RTLD_LAZY);
+        lib.hDxcoreLib = dlopen(libraryPath, RTLD_LAZY);
         if (!lib.hDxcoreLib) {
                 goto error;
         }

@@ -20,6 +20,7 @@ package dxcore
 #cgo linux LDFLAGS: -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files
 #cgo darwin LDFLAGS: -Wl,-undefined,dynamic_lookup
 
+#include <stdlib.h>
 #include <dxcore.h>
 */
 import "C"
@@ -32,9 +33,12 @@ type context C.struct_dxcore_context
 type adapter C.struct_dxcore_adapter
 
 // initContext initializes the dxcore context and populates the list of adapters.
-func initContext() (*context, error) {
+func initContext(libraryPath string) (*context, error) {
+	cLibraryPath := C.CString(libraryPath)
+	defer C.free(unsafe.Pointer(cLibraryPath))
+
 	cContext := C.struct_dxcore_context{}
-	if C.dxcore_init_context(&cContext) != 0 {
+	if C.dxcore_init_context(&cContext, cLibraryPath) != 0 {
 		return nil, fmt.Errorf("failed to initialize dxcore context")
 	}
 	c := (*context)(&cContext)
